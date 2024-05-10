@@ -2,28 +2,33 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-
 class LSTM_Autoencoder(nn.Module):
-    def __init__(self, input_shape):
+    def __init__(self, input_shape, num_classes):
         super(LSTM_Autoencoder, self).__init__()
         self.encoder = nn.LSTM(input_size=input_shape[1], hidden_size=32, bidirectional=True)
         self.decoder = nn.LSTM(input_size=64, hidden_size=32, bidirectional=True)
         self.fc = nn.Linear(64, input_shape[1])  # Output size should match input size
-        
+        self.output_layer = nn.Linear(64, num_classes)  # Output layer with num_classes units
+
     def forward(self, x):
         x, _ = self.encoder(x)
         x = torch.repeat_interleave(x[-1:], x.size(0), dim=0)  # Repeat the last hidden state
         x, _ = self.decoder(x)
-        x = self.fc(x)
+        x = self.fc(x.squeeze(0))  # Squeeze and pass through a linear layer
+        x = x.view(-1, 64)  # Reshape x to match the size of the output layer weight matrix
+        x = self.output_layer(x)  # Pass through the output layer
         return x
+
+
+
     
 
 if __name__=='__main__':
     # Giả sử chúng ta có 100 chuỗi dữ liệu, mỗi chuỗi có 10 bước thời gian, và mỗi bước thời gian có 3 đặc trưng
-    data = np.random.rand(100, 10, 3)  # Dữ liệu được tạo ngẫu nhiên
+    data = np.random.rand(100, 10, 8)  # Dữ liệu được tạo ngẫu nhiên
     data = torch.tensor(data, dtype=torch.float32)
     # Tạo một mô hình LSTM autoencoder với kích thước đầu vào là (10, 3) (số bước thời gian và số đặc trưng)
-    model = LSTM_Autoencoder(input_shape=(10, 3))
+    model = LSTM_Autoencoder(input_shape=(10, 8))
     reconstructed_data = model(data)
 
     # In kích thước của dữ liệu đã giải mã
